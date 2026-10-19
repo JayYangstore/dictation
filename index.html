@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="英语听写">
+<title>英语听写 · 板栗</title>
+<style>
+  :root {
+    --bg: #f4f6f9; --card: #fff; --ink: #1c1e21; --muted: #9aa0a8;
+    --line: #e5e8ee; --accent: #2f6bff; --green: #34c759; --red: #fa5151;
+  }
+  body.dark {
+    --bg: #141518; --card: #22252b; --ink: #e9ecf0; --muted: #8a93a0;
+    --line: #34383f; --accent: #5b83fa; --green: #4cd964; --red: #ff6b6b;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 17px; line-height: 1.5; min-height: 100vh; min-height: 100dvh; background-attachment: fixed; }
+  .app { max-width: 640px; margin: 0 auto; padding: 14px 16px 48px; }
+
+  .header { display: flex; align-items: center; justify-content: space-between; padding: 6px 4px 14px; }
+  .title { font-size: 22px; font-weight: 800; }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .icon-btn { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--card); color: var(--ink); font-size: 17px; cursor: pointer; }
+
+  .card { background: var(--card); border-radius: 16px; padding: 18px; margin-bottom: 12px; }
+  .card h2 { margin: 0 0 12px; font-size: 16px; font-weight: 700; }
+
+  .unit-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .unit-chip { padding: 8px 14px; border-radius: 20px; border: 1px solid var(--line);
+    background: var(--card); color: var(--ink); font-size: 14px; font-weight: 600; cursor: pointer; }
+  .unit-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .opt-row { display: flex; align-items: center; justify-content: space-between; margin: 10px 0; }
+  .opt-row label { font-size: 15px; }
+  .opt-row select, .opt-row input { font-size: 15px; padding: 6px 10px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+
+  .btn { width: 100%; padding: 15px; border-radius: 12px; border: none; font-size: 18px;
+    font-weight: 700; cursor: pointer; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-green { background: var(--green); color: #fff; }
+  .btn-red { background: var(--red); color: #fff; }
+  .btn-muted { background: var(--line); color: var(--ink); }
+  .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+  .btn-row .btn { flex: 1; }
+
+  .dict-num { font-size: 60px; font-weight: 800; text-align: center; margin: 20px 0 6px; }
+  .dict-num .small { font-size: 22px; color: var(--muted); font-weight: 600; }
+  .dict-hint { text-align: center; color: var(--muted); font-size: 15px; margin-bottom: 8px; }
+  .speak-btn { display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; border: 3px solid var(--accent); background: var(--card);
+    color: var(--accent); cursor: pointer; margin: 14px auto; }
+  .speak-lg { width: 96px; height: 96px; }
+  .speak-sm { width: 72px; height: 72px; border-width: 2px; }
+  .playing-note { text-align: center; color: var(--muted); font-size: 14px; margin-bottom: 14px; }
+
+  .check-word { text-align: center; margin: 18px 0; }
+  .check-en { font-size: 40px; font-weight: 800; letter-spacing: 0.5px; }
+  .check-cn { color: var(--muted); font-size: 18px; margin-top: 8px; }
+  .check-unit { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+  .score-big { font-size: 44px; font-weight: 800; text-align: center; margin: 8px 0; }
+  .score-label { text-align: center; color: var(--muted); font-size: 14px; }
+  .result-item { display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 16px; }
+  .result-item:last-child { border-bottom: none; }
+  .result-item .en { font-weight: 700; }
+  .result-item .cn { color: var(--muted); font-size: 14px; }
+  .correct { color: var(--green); font-weight: 700; }
+  .wrong { color: var(--red); font-weight: 700; }
+
+  .toast { position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
+    background: rgba(20,22,26,0.92); color: #fff; padding: 10px 22px; border-radius: 8px;
+    font-size: 14px; z-index: 999; max-width: 90vw; }
+  .word-stats { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .stat { text-align: center; padding: 8px 14px; background: var(--card); border-radius: 10px; border: 1px solid var(--line); }
+  .stat .num { font-size: 22px; font-weight: 800; }
+  .stat .lbl { font-size: 12px; color: var(--muted); }
+  .hidden { display: none !important; }
+  .progress-bar { height: 5px; background: var(--line); border-radius: 3px; margin-bottom: 10px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); transition: width 0.3s; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div>
+      <div class="title">英语听写</div>
+      <div class="sub">广州三上英语 · 报读 + 手写核对</div>
+    </div>
+    <button class="icon-btn" id="themeBtn">🌙</button>
+  </div>
+
+  <!-- 首页 -->
+  <div id="screen-home">
+    <div class="card">
+      <h2>① 选择范围（按课本顺序）</h2>
+      <div class="unit-grid" id="unitGrid"></div>
+    </div>
+    <div class="card">
+      <h2>② 听写设置</h2>
+      <div class="opt-row">
+        <label>内容</label>
+        <select id="modeSel">
+          <option value="word">单词</option>
+          <option value="phrase">短语/句子</option>
+        </select>
+      </div>
+      <div class="opt-row">
+        <label>每词读几遍</label>
+        <select id="repeatSel">
+          <option value="1">1 遍</option>
+          <option value="2" selected>2 遍</option>
+          <option value="3">3 遍</option>
+        </select>
+      </div>
+      <div class="opt-row">
+        <label>词间隔</label>
+        <select id="gapSel">
+          <option value="8">8 秒</option>
+          <option value="12" selected>12 秒</option>
+          <option value="15">15 秒</option>
+          <option value="20">20 秒</option>
+        </select>
+      </div>
+      <div class="opt-row">
+        <label>从第几个开始 / 数量</label>
+        <div>
+          <input type="number" id="startNum" min="1" value="1" style="width:64px">
+          <span> / 取 </span>
+          <input type="number" id="countNum" min="3" value="10" style="width:64px"> 个
+        </div>
+      </div>
+      <button class="btn btn-primary" id="startBtn">开始报读</button>
+    </div>
+    <div class="card">
+      <h2>📊 词汇统计</h2>
+      <div class="word-stats">
+        <div class="stat"><div class="num" id="statWords">0</div><div class="lbl">总词数</div></div>
+        <div class="stat"><div class="num" id="statRight">0</div><div class="lbl">累计对</div></div>
+        <div class="stat"><div class="num" id="statWrong">0</div><div class="lbl">累计错</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 报读屏 -->
+  <div id="screen-dict" class="hidden">
+    <div class="progress-bar"><div class="progress-fill" id="dictFill" style="width:0%"></div></div>
+    <div class="dict-num"><span id="dictIdx">1</span><span class="small"> / <span id="dictTotal">10</span></span></div>
+    <div class="dict-hint">听音频 · 在本子上写 · 不要偷看课本哦</div>
+    <button class="speak-btn speak-lg" id="speakBtn"><span class="icon" style="font-size:40px">🔊</span></button>
+    <div class="playing-note" id="playingNote">报读中… 点喇叭重听这一题</div>
+    <div class="btn-row">
+      <button class="btn btn-muted" id="prevBtn">◀ 上一题</button>
+      <button class="btn btn-muted" id="pauseBtn">暂停</button>
+      <button class="btn btn-primary" id="nextBtn">下一题 ▶</button>
+    </div>
+    <button class="btn btn-green" id="goCheckBtn" style="margin-top:10px">写完了，开始核对 ✔</button>
+    <button class="btn btn-muted" id="quitBtn" style="margin-top:8px">退出本次听写</button>
+  </div>
+
+  <!-- 核对屏 -->
+  <div id="screen-check" class="hidden">
+    <div class="progress-bar"><div class="progress-fill" id="checkFill" style="width:0%"></div></div>
+    <div class="dict-hint">问孩子写的什么 · 点对或错</div>
+    <div class="card">
+      <div class="check-word">
+        <div class="check-unit" id="checkUnit"></div>
+        <div class="check-en" id="checkEn">—</div>
+        <div class="check-cn" id="checkCn"></div>
+      </div>
+      <button class="speak-btn speak-sm" id="checkSpeak"><span class="icon" style="font-size:28px">🔊</span></button>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-red" id="markWrong">✗ 错</button>
+      <button class="btn btn-green" id="markRight">✓ 对</button>
+    </div>
+    <button class="btn btn-muted" id="checkBackBtn" style="margin-top:8px">返回报读</button>
+  </div>
+
+  <!-- 结果屏 -->
+  <div id="screen-result" class="hidden">
+    <div class="card">
+      <div class="score-label">本次听写成绩</div>
+      <div class="score-big" id="resultScore">0 / 10</div>
+      <div class="score-label" id="resultMsg"></div>
+    </div>
+    <div class="card">
+      <h2>📝 详情</h2>
+      <div id="resultList"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="againBtn">错词再练一轮</button>
+    </div>
+    <button class="btn btn-muted" id="homeBtn" style="margin-top:8px">返回首页</button>
+  </div>
+
+</div>
+
+<script>
+// ============ 词库 ============
+const WORDBANK = {"source":"新版人教版三年级上册英语 (Word List + Chunks)","extracted_at":"2026-10-19","words":{"Unit 1":[{"no":1,"en":"be (am/is/are)","cn":"是"},{"no":2,"en":"but","cn":"但，但是"},{"no":3,"en":"hi","cn":"嗨，喂，你好"},{"no":4,"en":"I","cn":"我"},{"no":5,"en":"it","cn":"它"},{"no":6,"en":"me","cn":"我"},{"no":7,"en":"meet","cn":"结识；遇见"},{"no":8,"en":"nice","cn":"令人愉快的"},{"no":9,"en":"on","cn":"在……上面"},{"no":10,"en":"ruler","cn":"尺子"},{"no":11,"en":"thank","cn":"感谢，向……表示感谢"},{"no":12,"en":"this","cn":"这，这个"},{"no":13,"en":"to","cn":"到，向，往"},{"no":14,"en":"too","cn":"也"},{"no":15,"en":"you","cn":"你，你们"}],"Unit 2":[{"no":1,"en":"a (an)","cn":"一，一个"},{"no":2,"en":"can","cn":"能，可以"},{"no":3,"en":"Chinese","cn":"中文"},{"no":4,"en":"chocolate","cn":"巧克力"},{"no":5,"en":"coffee","cn":"咖啡"},{"no":6,"en":"cookie","cn":"饼干"},{"no":7,"en":"English","cn":"英语"},{"no":8,"en":"get","cn":"得到"},{"no":9,"en":"hamburger","cn":"汉堡"},{"no":10,"en":"in","cn":"在……里面"},{"no":11,"en":"know","cn":"知道；认识"},{"no":12,"en":"salad","cn":"沙拉"},{"no":13,"en":"sofa","cn":"沙发"},{"no":14,"en":"what","cn":"什么"},{"no":15,"en":"word","cn":"单词"},{"no":16,"en":"yes","cn":"是，对"}],"Unit 3":[{"no":1,"en":"and","cn":"和"},{"no":2,"en":"boy","cn":"男孩"},{"no":3,"en":"card","cn":"卡片"},{"no":4,"en":"everyone","cn":"每个人，人人"},{"no":5,"en":"for","cn":"为了"},{"no":6,"en":"girl","cn":"女孩"},{"no":7,"en":"good","cn":"好的"},{"no":8,"en":"guess","cn":"猜，猜测"},{"no":9,"en":"hello","cn":"你好"},{"no":10,"en":"help","cn":"帮助，帮忙"},{"no":11,"en":"how","cn":"多少；怎样，如何"},{"no":12,"en":"last","cn":"最后"},{"no":13,"en":"like","cn":"喜欢"},{"no":14,"en":"Miss","cn":"小姐"},{"no":15,"en":"morning","cn":"早晨；上午"},{"no":16,"en":"Mr","cn":"先生"},{"no":17,"en":"Mrs","cn":"女士，夫人"},{"no":18,"en":"Ms","cn":"女士"},{"no":19,"en":"my","cn":"我的"},{"no":20,"en":"name","cn":"名字"},{"no":21,"en":"of","cn":"……的"},{"no":22,"en":"one","cn":"一"},{"no":23,"en":"student","cn":"学生"},{"no":24,"en":"want","cn":"想要"},{"no":25,"en":"your","cn":"你的；你们的"}],"Unit 4":[{"no":1,"en":"blue","cn":"蓝色"},{"no":2,"en":"colour","cn":"颜色"},{"no":3,"en":"cool","cn":"酷的，帅的"},{"no":4,"en":"do","cn":"做"},{"no":5,"en":"each","cn":"每个"},{"no":6,"en":"finger","cn":"手指"},{"no":7,"en":"first","cn":"第一的；首先；最初"},{"no":8,"en":"from","cn":"从"},{"no":9,"en":"green","cn":"绿色"},{"no":10,"en":"hand","cn":"手"},{"no":11,"en":"left","cn":"左边"},{"no":12,"en":"letter","cn":"字母"},{"no":13,"en":"look","cn":"看，瞧，望"},{"no":14,"en":"OK","cn":"好，可以"},{"no":15,"en":"pencil","cn":"铅笔"},{"no":16,"en":"put","cn":"放"},{"no":17,"en":"red","cn":"红色"},{"no":18,"en":"right","cn":"右边"},{"no":19,"en":"spell","cn":"拼写"},{"no":20,"en":"teach","cn":"教"},{"no":21,"en":"that","cn":"那，那个"},{"no":22,"en":"them","cn":"它们"},{"no":23,"en":"white","cn":"白色"},{"no":24,"en":"yellow","cn":"黄色"}],"Unit 5":[{"no":1,"en":"again","cn":"再，再次"},{"no":2,"en":"five","cn":"五"},{"no":3,"en":"four","cn":"四"},{"no":4,"en":"nine","cn":"九"},{"no":5,"en":"seven","cn":"七"},{"no":6,"en":"six","cn":"六"},{"no":7,"en":"step","cn":"步骤"},{"no":8,"en":"the","cn":"这，那"},{"no":9,"en":"three","cn":"三"},{"no":10,"en":"two","cn":"二"}],"Unit 6":[{"no":1,"en":"big","cn":"大的"},{"no":2,"en":"ear","cn":"耳朵"},{"no":3,"en":"eye","cn":"眼睛"},{"no":4,"en":"face","cn":"脸，面部"},{"no":5,"en":"hair","cn":"头发"},{"no":6,"en":"his","cn":"他的"},{"no":7,"en":"its","cn":"它的"},{"no":8,"en":"mouth","cn":"嘴巴"},{"no":9,"en":"nose","cn":"鼻子"},{"no":10,"en":"now","cn":"现在"},{"no":11,"en":"these","cn":"这些"},{"no":12,"en":"under","cn":"在……下面"},{"no":13,"en":"write","cn":"写"}],"Unit 7":[{"no":1,"en":"body","cn":"身体"},{"no":2,"en":"friend","cn":"朋友"},{"no":3,"en":"have","cn":"有，拥有"},{"no":4,"en":"heart","cn":"心，心脏；内心"},{"no":5,"en":"keep","cn":"保持"},{"no":6,"en":"listen","cn":"听"},{"no":7,"en":"myself","cn":"我自己"},{"no":8,"en":"nod","cn":"点头"},{"no":9,"en":"quiet","cn":"安静"},{"no":10,"en":"see","cn":"看见；明白"},{"no":11,"en":"teacher","cn":"老师"},{"no":12,"en":"they","cn":"他们"},{"no":13,"en":"up","cn":"向上"}],"Unit 8":[{"no":1,"en":"arm","cn":"手臂"},{"no":2,"en":"bear","cn":"熊"},{"no":3,"en":"bird","cn":"鸟"},{"no":4,"en":"fish","cn":"鱼"},{"no":5,"en":"fly","cn":"飞，飞翔"},{"no":6,"en":"foot","cn":"脚"},{"no":7,"en":"horse","cn":"马"},{"no":8,"en":"jump","cn":"跳，跳跃"},{"no":9,"en":"leg","cn":"腿"},{"no":10,"en":"let","cn":"让"},{"no":11,"en":"monkey","cn":"猴子"},{"no":12,"en":"move","cn":"移动"},{"no":13,"en":"our","cn":"我们的"},{"no":14,"en":"swim","cn":"游泳"},{"no":15,"en":"then","cn":"然后，接下来"},{"no":16,"en":"tiger","cn":"老虎"},{"no":17,"en":"us","cn":"我们"},{"no":18,"en":"walk","cn":"走，走路"}]},"phrases":{"Unit 1":[{"no":1,"en":"Show me ..., please.","cn":"请让我看看……"},{"no":2,"en":"I am ...","cn":"我是……（姓名）"},{"no":3,"en":"You're ...","cn":"你的座位是……（座位号）"},{"no":4,"en":"I'm ...","cn":"我的座位是……（座位号）"},{"no":5,"en":"Nice to meet you!","cn":"很高兴认识你！"},{"no":6,"en":"What's your name?","cn":"你叫什么名字？"},{"no":7,"en":"My name is ... / I'm ...","cn":"我叫……"}],"Unit 2":[{"no":1,"en":"What's this?","cn":"这是什么？"},{"no":2,"en":"It's ...","cn":"这是……"}],"Unit 3":[{"no":1,"en":"last name","cn":"姓氏"},{"no":2,"en":"Good morning!","cn":"早上好！"},{"no":3,"en":"Can you say that again?","cn":"你能再说一遍吗？"},{"no":4,"en":"Sure! ...","cn":"当然！……"}],"Unit 4":[{"no":1,"en":"coloured pencil","cn":"彩色铅笔"},{"no":2,"en":"left hand","cn":"左手"},{"no":3,"en":"right hand","cn":"右手"},{"no":4,"en":"How do you spell ...?","cn":"……要怎么拼写？"},{"no":5,"en":"How can you be a good listener?","cn":"你要怎样才能做一个好的倾听者？"},{"no":6,"en":"I see.","cn":"我明白了。"},{"no":7,"en":"I have a question.","cn":"我有一个问题。"}],"Unit 5":[{"no":1,"en":"What's the ...?","cn":"……是什么？"}],"Unit 6":[{"no":1,"en":"Draw a ...","cn":"画一个……"},{"no":2,"en":"This is ...","cn":"这是……"},{"no":3,"en":"These are ...","cn":"这些是……"},{"no":4,"en":"What colour is ...?","cn":"……是什么颜色？"}],"Unit 7":[{"no":1,"en":"face the speaker","cn":"面向说话者"},{"no":2,"en":"nod my head","cn":"点头"},{"no":3,"en":"keep quiet","cn":"保持安静"},{"no":4,"en":"listen to my teacher","cn":"听老师的话"},{"no":5,"en":"put up my hand","cn":"举手"},{"no":6,"en":"wait your turn","cn":"等着轮到你"},{"no":7,"en":"Follow me!","cn":"跟我做！"},{"no":8,"en":"Come on!","cn":"加把劲！"}],"Unit 8":[{"no":1,"en":"fly like a bird","cn":"像小鸟一样飞翔"},{"no":2,"en":"run like a horse","cn":"像马一样奔跑"},{"no":3,"en":"swim like a fish","cn":"像鱼一样游泳"},{"no":4,"en":"jump like a monkey","cn":"像猴子一样跳"},{"no":5,"en":"walk like a bear","cn":"像熊一样走路"},{"no":6,"en":"Let's ...","cn":"让我们……"},{"no":7,"en":"Are you ready?","cn":"你准备好了吗？"}],"Review":[{"no":1,"en":"This is my ...","cn":"这是我的……"},{"no":2,"en":"It's good to see you!","cn":"很高兴见到你！"},{"no":3,"en":"You are here.","cn":"你坐这里。"},{"no":4,"en":"Thanks! / Thank you!","cn":"谢谢！"},{"no":5,"en":"You're welcome.","cn":"不用谢。"},{"no":6,"en":"a music show","cn":"一场音乐表演"}]}};
+
+// ============ 状态 ============
+const THEME_KEY = "dict_theme";
+const STATS_KEY = "dict_stats";
+let selectedUnits = new Set();
+let list = [];
+let idx = 0;
+let checkIdx = 0;
+let marks = [];
+let playing = false;
+let playTimers = [];
+
+function $(id){ return document.getElementById(id); }
+
+function sortedUnits() {
+  return Object.keys(WORDBANK.words).sort((a,b) => {
+    const na = parseInt((a.match(/\d+/)||[99])[0]);
+    const nb = parseInt((b.match(/\d+/)||[99])[0]);
+    return na - nb;
+  });
+}
+
+// ============ 语音: 优选高质量英文音色 ============
+let EN_VOICE = null;
+function pickVoice() {
+  const vs = window.speechSynthesis ? speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang)) : [];
+  if (!vs.length) return;
+  const priority = [/siri/i, /samantha/i, /karen/i, /daniel/i, /aria/i, /jenny/i, /libby/i, /sonia/i];
+  for (const p of priority) {
+    const v = vs.find(x => p.test(x.name));
+    if (v) { EN_VOICE = v; return; }
+  }
+  EN_VOICE = vs.find(v => v.lang === "en-US" && v.localService) || vs.find(v => /^en/i.test(v.lang)) || vs[0];
+}
+if (window.speechSynthesis) {
+  pickVoice();
+  speechSynthesis.onvoiceschanged = pickVoice;
+}
+
+function speakOnce(text, onend) {
+  if (!window.speechSynthesis) { if(onend) onend(); return; }
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  if (EN_VOICE) u.voice = EN_VOICE;
+  u.lang = (EN_VOICE && EN_VOICE.lang) || "en-US";
+  u.rate = 0.8;
+  u.pitch = 1.0;
+  if (onend) u.onend = onend;
+  speechSynthesis.speak(u);
+}
+
+// ============ 主题 ============
+function applyTheme() {
+  const dark = localStorage.getItem(THEME_KEY) === "dark";
+  document.body.classList.toggle("dark", dark);
+  $("themeBtn").textContent = dark ? "☀️" : "🌙";
+}
+
+// ============ 首页 ============
+function renderUnits() {
+  const g = $("unitGrid"); g.innerHTML = "";
+  for (const u of sortedUnits()) {
+    const chip = document.createElement("button");
+    chip.className = "unit-chip" + (selectedUnits.has(u) ? " active" : "");
+    chip.textContent = u.replace("Unit ","U") + " · " + WORDBANK.words[u].length + "词";
+    chip.onclick = () => {
+      if (selectedUnits.has(u)) selectedUnits.delete(u); else selectedUnits.add(u);
+      renderUnits();
+    };
+    g.appendChild(chip);
+  }
+}
+
+function poolWords() {
+  let pool = [];
+  for (const u of sortedUnits()) {
+    if (selectedUnits.size === 0 || selectedUnits.has(u)) {
+      for (const w of WORDBANK.words[u]) pool.push({en:w.en, cn:w.cn, unit:u});
+    }
+  }
+  return pool;
+}
+function poolPhrases() {
+  return WORDBANK.phrases.map(p => ({en:p.en, cn:p.cn, unit:"短语"}));
+}
+
+function updateStats() {
+  const s = JSON.parse(localStorage.getItem(STATS_KEY) || "{}");
+  let right = 0, wrong = 0;
+  for (const k in s) { right += s[k].right||0; wrong += s[k].wrong||0; }
+  const pool = $("modeSel").value === "phrase" ? poolPhrases() : poolWords();
+  $("statWords").textContent = pool.length;
+  $("statRight").textContent = right;
+  $("statWrong").textContent = wrong;
+}
+
+// ============ 报读 ============
+function stopPlay() {
+  playing = false;
+  playTimers.forEach(clearTimeout);
+  playTimers = [];
+  if (window.speechSynthesis) speechSynthesis.cancel();
+}
+
+function buildList() {
+  const mode = $("modeSel").value;
+  let pool = mode === "phrase" ? poolPhrases() : poolWords();
+  if (mode === "phrase") {
+    const n = Math.min(parseInt($("countNum").value)||10, pool.length);
+    list = pool.slice(0, n);
+  } else {
+    if (pool.length === 0) { alert("请先选择单元"); return false; }
+    const start = Math.max(1, parseInt($("startNum").value)||1);
+    const n = Math.min(parseInt($("countNum").value)||10, pool.length);
+    const from = Math.min(start-1, Math.max(0, pool.length-n));
+    list = pool.slice(from, Math.min(from+n, pool.length));
+  }
+  if (list.length === 0) { alert("没有可选内容"); return false; }
+  return true;
+}
+
+function playCurrentWord() {
+  const w = list[idx];
+  if (!w) return;
+  const repeat = parseInt($("repeatSel").value)||2;
+  const gap = (parseInt($("gapSel").value)||12) * 1000;
+  stopPlay();
+  playing = true;
+  $("dictIdx").textContent = idx + 1;
+  $("dictTotal").textContent = list.length;
+  $("dictFill").style.width = (idx / list.length * 100) + "%";
+  let t = 0;
+  const playChain = (i) => {
+    if (!playing) return;
+    if (i >= repeat) {
+      playTimers.push(setTimeout(() => {
+        if (!playing) return;
+        if (idx < list.length - 1) { idx++; playCurrentWord(); }
+        else { stopPlay(); toast("全部报读完毕！核对吧 ✔"); }
+      }, gap));
+      return;
+    }
+    speakOnce(w.en, () => {
+      if (!playing) return;
+      playTimers.push(setTimeout(() => playChain(i+1), 1600));
+    });
+  };
+  playChain(0);
+}
+
+function gotoWord(i) {
+  if (i < 0) i = 0;
+  if (i > list.length-1) i = list.length-1;
+  idx = i;
+  playCurrentWord();
+}
+
+// ============ 核对 ============
+function startCheck() {
+  stopPlay();
+  checkIdx = 0;
+  marks = [];
+  showScreen("screen-check");
+  renderCheck();
+}
+
+function renderCheck() {
+  const w = list[checkIdx];
+  $("checkUnit").textContent = w.unit;
+  $("checkEn").textContent = w.en;
+  $("checkCn").textContent = w.cn;
+  $("checkFill").style.width = (checkIdx / list.length * 100) + "%";
+}
+
+function mark(right) {
+  const w = list[checkIdx];
+  marks.push({en:w.en, cn:w.cn, unit:w.unit, right});
+  const s = JSON.parse(localStorage.getItem(STATS_KEY) || "{}");
+  if (!s[w.en]) s[w.en] = {right:0, wrong:0};
+  if (right) s[w.en].right++; else s[w.en].wrong++;
+  localStorage.setItem(STATS_KEY, JSON.stringify(s));
+  checkIdx++;
+  if (checkIdx >= list.length) showResult();
+  else renderCheck();
+}
+
+function showResult() {
+  const right = marks.filter(m => m.right).length;
+  showScreen("screen-result");
+  $("resultScore").textContent = right + " / " + marks.length;
+  const pct = Math.round(right / marks.length * 100);
+  $("resultMsg").textContent = pct >= 90 ? "太棒了！🎉" : pct >= 70 ? "不错，继续加油！" : "错词再练一轮吧！";
+  const l = $("resultList"); l.innerHTML = "";
+  for (const m of marks) {
+    const row = document.createElement("div");
+    row.className = "result-item";
+    row.innerHTML = '<span><span class="' + (m.right?'correct':'wrong') + '">' + (m.right?'✓':'✗') + '</span> <span class="en">' + m.en + '</span> <span class="cn">' + m.cn + '</span></span>'
+      + '<span class="cn">' + m.unit + '</span>';
+    l.appendChild(row);
+  }
+  updateStats();
+}
+
+// ============ 工具 ============
+function showScreen(id) {
+  ["screen-home","screen-dict","screen-check","screen-result"].forEach(s => {
+    $(s).classList.toggle("hidden", s !== id);
+  });
+}
+function toast(msg) {
+  const t = document.createElement("div");
+  t.className = "toast";
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+
+// ============ 初始化 ============
+window.addEventListener("load", () => {
+  applyTheme();
+  renderUnits();
+  updateStats();
+
+  $("themeBtn").onclick = () => {
+    localStorage.setItem(THEME_KEY, localStorage.getItem(THEME_KEY)==="dark" ? "" : "dark");
+    applyTheme();
+  };
+  $("modeSel").onchange = updateStats;
+
+  $("startBtn").onclick = () => {
+    if (!buildList()) return;
+    idx = 0;
+    showScreen("screen-dict");
+    setTimeout(() => playCurrentWord(), 300);
+  };
+
+  $("speakBtn").onclick = () => { const w = list[idx]; if (w) speakOnce(w.en); };
+  $("prevBtn").onclick = () => gotoWord(idx-1);
+  $("nextBtn").onclick = () => {
+    if (idx < list.length-1) gotoWord(idx+1);
+    else { stopPlay(); toast("已经是最后一题，核对吧 ✔"); }
+  };
+  $("pauseBtn").onclick = function() {
+    if (playing) { stopPlay(); this.textContent = "继续"; $("playingNote").textContent = "已暂停"; }
+    else { this.textContent = "暂停"; $("playingNote").textContent = "报读中… 点喇叭重听这一题"; playCurrentWord(); }
+  };
+  $("goCheckBtn").onclick = startCheck;
+  $("quitBtn").onclick = () => { stopPlay(); showScreen("screen-home"); };
+
+  $("markRight").onclick = () => mark(true);
+  $("markWrong").onclick = () => mark(false);
+  $("checkSpeak").onclick = () => { const w = list[checkIdx]; if (w) speakOnce(w.en); };
+  $("checkBackBtn").onclick = () => { showScreen("screen-dict"); };
+
+  $("againBtn").onclick = () => {
+    const wrong = marks.filter(m => !m.right);
+    if (wrong.length === 0) { showScreen("screen-home"); return; }
+    list = wrong.map(w => ({en:w.en, cn:w.cn, unit:w.unit}));
+    idx = 0;
+    showScreen("screen-dict");
+    setTimeout(() => playCurrentWord(), 300);
+  };
+  $("homeBtn").onclick = () => showScreen("screen-home");
+});
+</script>
+</body>
+</html>
