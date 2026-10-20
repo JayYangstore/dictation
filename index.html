@@ -60,6 +60,9 @@
   .speak-sm { width: 72px; height: 72px; border-width: 2px; }
   .playing-note { text-align: center; color: var(--muted); font-size: 14px; margin-bottom: 14px; }
 
+  .gap-ctrl { display: flex; align-items: center; gap: 8px; }
+  .gap-ctrl input[type=range] { flex: 1; min-width: 90px; height: 22px; accent-color: var(--accent); }
+  .unit-s { font-size: 13px; color: var(--muted); }
   .range-hint { font-size: 12px; color: var(--muted); margin-left: 6px; }
   .check-no { font-size: 15px; font-weight: 700; color: var(--accent); margin-bottom: 2px; }
   .check-book { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
@@ -126,13 +129,12 @@
         </select>
       </div>
       <div class="opt-row">
-        <label>词间隔</label>
-        <select id="gapSel">
-          <option value="8">8 秒</option>
-          <option value="12" selected>12 秒</option>
-          <option value="15">15 秒</option>
-          <option value="20">20 秒</option>
-        </select>
+        <label>词间隔（秒）</label>
+        <div class="gap-ctrl">
+          <input type="range" id="gapRange" min="1" max="60" step="0.5" value="12">
+          <input type="number" id="gapNum" min="1" max="300" step="0.5" value="12" style="width:74px">
+          <span class="unit-s">秒</span>
+        </div>
       </div>
       <div class="opt-row">
         <label>听写第几个 到 第几个</label>
@@ -361,7 +363,7 @@ function playCurrentWord() {
   const w = list[idx];
   if (!w) return;
   const repeat = parseInt($("repeatSel").value)||2;
-  const gap = (parseInt($("gapSel").value)||12) * 1000;
+  const gap = getGap();
   stopPlay();
   playing = true;
   $("dictIdx").textContent = idx + 1;
@@ -403,6 +405,30 @@ function updateRangeHint() {
   if (f > t) { const x = f; f = t; t = x; }
   const c = Math.max(0, Math.min(t, pool.length) - f + 1);
   $("rangeHint").textContent = "（共 " + c + " 词，当前池 " + pool.length + "）";
+}
+
+
+// ============ 词间隔 (完全可调 1~300 秒) ============
+function getGap() {
+  let v = parseFloat($("gapNum").value);
+  if (!isFinite(v) || v < 1) v = 1;
+  if (v > 300) v = 300;
+  return v * 1000;   // 毫秒
+}
+function syncGap(fromRange) {
+  const r = $("gapRange"), n = $("gapNum");
+  let v = parseFloat(fromRange === "n" ? n.value : r.value);
+  if (!isFinite(v)) v = 12;
+  v = Math.min(300, Math.max(1, v));
+  n.value = v;
+  r.value = Math.min(60, v);   // 滑块上限 60, 超过则滑块钉在 60
+  localStorage.setItem("dict_gap", v);
+}
+function initGap() {
+  const saved = parseFloat(localStorage.getItem("dict_gap"));
+  const v = (isFinite(saved) && saved >= 1) ? saved : 12;
+  $("gapNum").value = v;
+  $("gapRange").value = Math.min(60, v);
 }
 
 // ============ 核对 ============
@@ -487,6 +513,7 @@ window.addEventListener("load", () => {
   renderUnits();
   updateStats();
   updateRangeHint();
+  initGap();
 
   $("themeBtn").onclick = () => {
     localStorage.setItem(THEME_KEY, localStorage.getItem(THEME_KEY)==="dark" ? "" : "dark");
@@ -494,6 +521,8 @@ window.addEventListener("load", () => {
   };
   $("modeSel").onchange = () => { updateStats(); updateRangeHint(); };
   $("startNum").oninput = updateRangeHint;
+  $("gapRange").oninput = () => syncGap("r");
+  $("gapNum").oninput   = () => syncGap("n");
   $("endNum").oninput = updateRangeHint;
 
   $("startBtn").onclick = () => {
