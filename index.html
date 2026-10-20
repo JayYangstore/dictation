@@ -273,27 +273,48 @@ function wordForms(en) {
 }
 // 实际朗读序列。孤立单字母 a/e/i/o/u 会被 TTS 当成英文字母名
 // (a 念成 /eɪ/ 而非冠词 /ə/), 必须带词组上下文才读对。
-function speakVariants(en) {
-  const parts = wordForms(en);
-  // 形如 a(an) / a(e/i/o/u): 整体当一个词组读, TTS 才按冠词发音
-  const solo = parts.find(x => /^[aeiouAEIOU]$/.test(x));
-  if (solo && parts.length > 1) return [parts.join(" ")];
-  return parts;
+// 多形态词的两种视图:
+//   wordForms(word)  -> 要写哪几个 (核对屏显示, 仍是 [a, an])
+//   speakSeq(word)   -> 实际朗读顺序 (命中预生成音频的, 返回 [{type:"audio", file:"audio/a.mp3"}])
+// 孤立 a 单 TTS 必读 /eɪ/, 预生成 a.mp3 / an.mp3 用 HTML5 Audio 精确播放
+const AUDIO_MAP = {
+  "a":   "audio/a.mp3",
+  "an":  "audio/an.mp3",
+  "be":  null, "am": null, "is": null, "are": null,
+};
+function speakSeq(en) {
+  return wordForms(en).map(f => {
+    const k = f.toLowerCase();
+    return AUDIO_MAP[k] !== undefined
+      ? { type: AUDIO_MAP[k] ? "audio" : "tts", file: AUDIO_MAP[k], text: f }
+      : { type: "tts", text: f };
+  });
+}
+let audioEl = null;
+function playAudioItem(item, onend) {
+  audioEl = new Audio(item.file);
+  audioEl.onended = () => { if(onend) onend(); };
+  audioEl.onerror = () => { console.warn("音频加载失败", item.file); if(onend) onend(); };
+  audioEl.play().catch(e => { console.warn("音频播放失败", e); if(onend) onend(); });
 }
 function speakOnce(text, onend) {
-  if (!window.speechSynthesis) { if(onend) onend(); return; }
-  speechSynthesis.cancel();
-  const parts = speakVariants(text);
+  if (window.speechSynthesis) speechSynthesis.cancel();
+  const seq = speakSeq(text);
   let i = 0;
   const next = () => {
-    if (i >= parts.length) { if(onend) onend(); return; }
-    const u = new SpeechSynthesisUtterance(parts[i]);
-    if (EN_VOICE) u.voice = EN_VOICE;
-    u.lang = (EN_VOICE && EN_VOICE.lang) || "en-US";
-    u.rate = 0.8;
-    u.pitch = 1.0;
-    u.onend = () => { i++; setTimeout(next, 420); };
-    speechSynthesis.speak(u);
+    if (i >= seq.length) { if(onend) onend(); return; }
+    const it = seq[i++];
+    if (it.type === "audio" && it.file) {
+      playAudioItem(it, () => setTimeout(next, 80));
+    } else {
+      const u = new SpeechSynthesisUtterance(it.text);
+      if (EN_VOICE) u.voice = EN_VOICE;
+      u.lang = (EN_VOICE && EN_VOICE.lang) || "en-US";
+      u.rate = 0.8; u.pitch = 1.0;
+      u.onend = () => setTimeout(next, 420);
+      u.onerror = () => setTimeout(next, 420);
+      speechSynthesis.speak(u);
+    }
   };
   next();
 }
