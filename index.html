@@ -60,6 +60,9 @@
   .speak-sm { width: 72px; height: 72px; border-width: 2px; }
   .playing-note { text-align: center; color: var(--muted); font-size: 14px; margin-bottom: 14px; }
 
+  .check-no { font-size: 15px; font-weight: 700; color: var(--accent); margin-bottom: 2px; }
+  .check-book { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .dict-book { text-align: center; font-size: 13px; color: var(--muted); margin-top: -12px; margin-bottom: 8px; }
   .check-word { text-align: center; margin: 18px 0; }
   .check-en { font-size: 40px; font-weight: 800; letter-spacing: 0.5px; }
   .check-cn { color: var(--muted); font-size: 18px; margin-top: 8px; }
@@ -155,6 +158,7 @@
     <div class="progress-bar"><div class="progress-fill" id="dictFill" style="width:0%"></div></div>
     <div class="dict-num"><span id="dictIdx">1</span><span class="small"> / <span id="dictTotal">10</span></span></div>
     <div class="dict-hint">听音频 · 在本子上写 · 不要偷看课本哦</div>
+    <div class="dict-book" id="dictBook"></div>
     <button class="speak-btn speak-lg" id="speakBtn"><span class="icon" style="font-size:40px">🔊</span></button>
     <div class="playing-note" id="playingNote">报读中… 点喇叭重听这一题</div>
     <div class="btn-row">
@@ -173,6 +177,8 @@
     <div class="card">
       <div class="check-word">
         <div class="check-unit" id="checkUnit"></div>
+        <div class="check-no" id="checkNo"></div>
+        <div class="check-book" id="checkBook"></div>
         <div class="check-en" id="checkEn">—</div>
         <div class="check-cn" id="checkCn"></div>
       </div>
@@ -289,18 +295,18 @@ function poolWords() {
     if (selectedUnits.size === 0 || selectedUnits.has(u)) {
       const list = WORDBANK.words[u];
       if (!list) continue;
-      for (const w of list) pool.push({en:w.en, cn:w.cn, unit:u});
+      for (const w of list) pool.push({en:w.en, cn:w.cn, no:w.no, unit:u});
     }
   }
   if (WORDBANK.review && WORDBANK.review.length &&
       (selectedUnits.size === 0 || selectedUnits.has("Review"))) {
-    for (const w of WORDBANK.review) pool.push({en:w.en, cn:w.cn, unit:"Review"});
+    for (const w of WORDBANK.review) pool.push({en:w.en, cn:w.cn, no:w.no, unit:"Review"});
   }
   return pool;
 }
 function poolPhrases() {
   const list = WORDBANK.reviewPhrases || WORDBANK.phrases || [];
-  return list.map(p => ({en:p.en, cn:p.cn, unit:"短语"}));
+  return list.map(p => ({en:p.en, cn:p.cn, no:p.no, unit:"短语"}));
 }
 
 function updateStats() {
@@ -346,6 +352,7 @@ function playCurrentWord() {
   stopPlay();
   playing = true;
   $("dictIdx").textContent = idx + 1;
+  $("dictBook").textContent = w.no != null ? ("课本第 " + w.no + " 个") : "";
   $("dictTotal").textContent = list.length;
   $("dictFill").style.width = (idx / list.length * 100) + "%";
   let t = 0;
@@ -385,19 +392,34 @@ function startCheck() {
 
 function renderCheck() {
   const w = list[checkIdx];
+  if (!w) return;
   $("checkUnit").textContent = w.unit;
+  $("checkNo").textContent = "第 " + (checkIdx + 1) + " / " + list.length + " 个";
   $("checkEn").textContent = w.en;
   $("checkCn").textContent = w.cn;
-  $("checkFill").style.width = (checkIdx / list.length * 100) + "%";
+  $("checkFill").style.width = ((checkIdx + 1) / list.length * 100) + "%";
+  // 若该词在课本里有原始序号 (no), 一并显示, 方便跟单词表对照
+  if (w.no != null) {
+    $("checkBook").textContent = "课本第 " + w.no + " 个";
+    $("checkBook").style.display = "";
+  } else {
+    $("checkBook").style.display = "none";
+  }
 }
 
 function mark(right) {
   const w = list[checkIdx];
-  marks.push({en:w.en, cn:w.cn, unit:w.unit, right});
-  const s = JSON.parse(localStorage.getItem(STATS_KEY) || "{}");
-  if (!s[w.en]) s[w.en] = {right:0, wrong:0};
-  if (right) s[w.en].right++; else s[w.en].wrong++;
-  localStorage.setItem(STATS_KEY, JSON.stringify(s));
+  if (!w) return;
+  marks.push({en:w.en, cn:w.cn, no:w.no, unit:w.unit, right});
+  // 统计写入必须容错: 配额满/隐私模式抛错会中断后续 checkIdx++, 导致核对卡在第一个词
+  try {
+    const s = JSON.parse(localStorage.getItem(STATS_KEY) || "{}");
+    if (!s[w.en]) s[w.en] = {right:0, wrong:0};
+    if (right) s[w.en].right++; else s[w.en].wrong++;
+    localStorage.setItem(STATS_KEY, JSON.stringify(s));
+  } catch(e) {
+    console.warn("统计保存失败(不影响核对):", e);
+  }
   checkIdx++;
   if (checkIdx >= list.length) showResult();
   else renderCheck();
@@ -474,7 +496,7 @@ window.addEventListener("load", () => {
   $("againBtn").onclick = () => {
     const wrong = marks.filter(m => !m.right);
     if (wrong.length === 0) { showScreen("screen-home"); return; }
-    list = wrong.map(w => ({en:w.en, cn:w.cn, unit:w.unit}));
+    list = wrong.map(w => ({en:w.en, cn:w.cn, no:w.no, unit:w.unit}));
     idx = 0;
     showScreen("screen-dict");
     setTimeout(() => playCurrentWord(), 300);
