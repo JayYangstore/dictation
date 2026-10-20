@@ -60,6 +60,7 @@
   .speak-sm { width: 72px; height: 72px; border-width: 2px; }
   .playing-note { text-align: center; color: var(--muted); font-size: 14px; margin-bottom: 14px; }
 
+  .range-hint { font-size: 12px; color: var(--muted); margin-left: 6px; }
   .check-no { font-size: 15px; font-weight: 700; color: var(--accent); margin-bottom: 2px; }
   .check-book { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
   .dict-book { text-align: center; font-size: 13px; color: var(--muted); margin-top: -12px; margin-bottom: 8px; }
@@ -134,11 +135,12 @@
         </select>
       </div>
       <div class="opt-row">
-        <label>从第几个开始 / 数量</label>
+        <label>听写第几个 到 第几个</label>
         <div>
           <input type="number" id="startNum" min="1" value="1" style="width:64px">
-          <span> / 取 </span>
-          <input type="number" id="countNum" min="3" value="10" style="width:64px"> 个
+          <span> 到 </span>
+          <input type="number" id="endNum" min="1" value="10" style="width:64px">
+          <span id="rangeHint" class="range-hint"></span>
         </div>
       </div>
       <button class="btn btn-primary" id="startBtn">开始报读</button>
@@ -224,6 +226,7 @@ let checkIdx = 0;
 let marks = [];
 let playing = false;
 let playTimers = [];
+let rangeStart = 1;
 
 function $(id){ return document.getElementById(id); }
 
@@ -331,14 +334,24 @@ function buildList() {
   const mode = $("modeSel").value;
   let pool = mode === "phrase" ? poolPhrases() : poolWords();
   if (mode === "phrase") {
-    const n = Math.min(parseInt($("countNum").value)||10, pool.length);
-    list = pool.slice(0, n);
+    let from = Math.max(1, parseInt($("startNum").value) || 1);
+    let to   = Math.max(1, parseInt($("endNum").value)   || 10);
+    if (from > to) { const t = from; from = to; to = t; }
+    if (from > pool.length) { alert("起始序号超出范围（共 " + pool.length + " 条）"); return false; }
+    to = Math.min(to, pool.length);
+    list = pool.slice(from-1, to);
+    rangeStart = from;
   } else {
     if (pool.length === 0) { alert("请先选择单元"); return false; }
-    const start = Math.max(1, parseInt($("startNum").value)||1);
-    const n = Math.min(parseInt($("countNum").value)||10, pool.length);
-    const from = Math.min(start-1, Math.max(0, pool.length-n));
-    list = pool.slice(from, Math.min(from+n, pool.length));
+    // 区间语义: startNum 到 endNum (闭区间), 超范围自动收敛
+    let from = Math.max(1, parseInt($("startNum").value) || 1);
+    let to   = Math.max(1, parseInt($("endNum").value)   || 10);
+    if (from > to) { const t = from; from = to; to = t; }   // 填反了自动交换
+    if (from > pool.length) { alert("起始序号超出范围（共 " + pool.length + " 词）"); return false; }
+    to = Math.min(to, pool.length);
+    from = Math.min(from, to);
+    list = pool.slice(from-1, to);
+    rangeStart = from;
   }
   if (list.length === 0) { alert("没有可选内容"); return false; }
   return true;
@@ -381,6 +394,17 @@ function gotoWord(i) {
   playCurrentWord();
 }
 
+
+function updateRangeHint() {
+  const pool = $("modeSel").value === "phrase" ? poolPhrases() : poolWords();
+  if (!pool.length) { $("rangeHint").textContent = ""; return; }
+  let f = parseInt($("startNum").value) || 1;
+  let t = parseInt($("endNum").value) || 10;
+  if (f > t) { const x = f; f = t; t = x; }
+  const c = Math.max(0, Math.min(t, pool.length) - f + 1);
+  $("rangeHint").textContent = "（共 " + c + " 词，当前池 " + pool.length + "）";
+}
+
 // ============ 核对 ============
 function startCheck() {
   stopPlay();
@@ -394,7 +418,8 @@ function renderCheck() {
   const w = list[checkIdx];
   if (!w) return;
   $("checkUnit").textContent = w.unit;
-  $("checkNo").textContent = "第 " + (checkIdx + 1) + " / " + list.length + " 个";
+  $("checkNo").textContent = "第 " + (checkIdx + 1) + " / " + list.length + " 个"
+    + (list.length < 100 ? "（本区间第 " + (checkIdx+1) + " 个）" : "");
   $("checkEn").textContent = w.en;
   $("checkCn").textContent = w.cn;
   $("checkFill").style.width = ((checkIdx + 1) / list.length * 100) + "%";
@@ -461,12 +486,15 @@ window.addEventListener("load", () => {
   applyTheme();
   renderUnits();
   updateStats();
+  updateRangeHint();
 
   $("themeBtn").onclick = () => {
     localStorage.setItem(THEME_KEY, localStorage.getItem(THEME_KEY)==="dark" ? "" : "dark");
     applyTheme();
   };
-  $("modeSel").onchange = updateStats;
+  $("modeSel").onchange = () => { updateStats(); updateRangeHint(); };
+  $("startNum").oninput = updateRangeHint;
+  $("endNum").oninput = updateRangeHint;
 
   $("startBtn").onclick = () => {
     if (!buildList()) return;
