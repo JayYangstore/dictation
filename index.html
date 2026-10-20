@@ -305,7 +305,7 @@ function speakOnce(text, onend) {
     if (i >= seq.length) { if(onend) onend(); return; }
     const it = seq[i++];
     if (it.type === "audio" && it.file) {
-      playAudioItem(it, () => setTimeout(next, 80));
+      playAudioItem(it, () => setTimeout(next, 600));
     } else {
       const u = new SpeechSynthesisUtterance(it.text);
       if (EN_VOICE) u.voice = EN_VOICE;
