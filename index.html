@@ -257,16 +257,38 @@ if (window.speechSynthesis) {
   speechSynthesis.onvoiceschanged = pickVoice;
 }
 
+// 把 "be(am/is/are)" / "a(an)" 拆成 ["be","am","is","are"] / ["a","an"]
+function speakVariants(en) {
+  const s = String(en).trim();
+  // "be(am/is/are)" -> [be, am, is, are]   括号内容是全部形态, head 也是其中一个
+  // "a(an)"        -> [a, an]
+  const paren = s.match(/^([A-Za-z]+)\s*\(([^()]*)\)$/);
+  if (paren) {
+    const head = paren[1].trim();
+    const alts = paren[2].split(/[\/,/、]/).map(x => x.trim()).filter(Boolean);
+    const all = [head].concat(alts.filter(a => a.toLowerCase() !== head.toLowerCase()));
+    return all;
+  }
+  // "thanks / Thank you!" -> 两个独立说法
+  if (s.includes("/")) return s.split("/").map(x => x.trim()).filter(Boolean);
+  return [s];
+}
 function speakOnce(text, onend) {
   if (!window.speechSynthesis) { if(onend) onend(); return; }
   speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  if (EN_VOICE) u.voice = EN_VOICE;
-  u.lang = (EN_VOICE && EN_VOICE.lang) || "en-US";
-  u.rate = 0.8;
-  u.pitch = 1.0;
-  if (onend) u.onend = onend;
-  speechSynthesis.speak(u);
+  const parts = speakVariants(text);
+  let i = 0;
+  const next = () => {
+    if (i >= parts.length) { if(onend) onend(); return; }
+    const u = new SpeechSynthesisUtterance(parts[i]);
+    if (EN_VOICE) u.voice = EN_VOICE;
+    u.lang = (EN_VOICE && EN_VOICE.lang) || "en-US";
+    u.rate = 0.8;
+    u.pitch = 1.0;
+    u.onend = () => { i++; setTimeout(next, 420); };
+    speechSynthesis.speak(u);
+  };
+  next();
 }
 
 // ============ 主题 ============
@@ -450,12 +472,13 @@ function renderCheck() {
   $("checkCn").textContent = w.cn;
   $("checkFill").style.width = ((checkIdx + 1) / list.length * 100) + "%";
   // 若该词在课本里有原始序号 (no), 一并显示, 方便跟单词表对照
-  if (w.no != null) {
-    $("checkBook").textContent = "课本第 " + w.no + " 个";
-    $("checkBook").style.display = "";
-  } else {
-    $("checkBook").style.display = "none";
+  const variants = speakVariants(w.en);
+  let tip = (w.no != null) ? ("课本第 " + w.no + " 个") : "";
+  if (variants.length > 1) {
+    tip += (tip ? " · " : "") + "含 " + variants.length + " 个说法: " + variants.join(" / ");
   }
+  $("checkBook").textContent = tip;
+  $("checkBook").style.display = tip ? "" : "none";
 }
 
 function mark(right) {
