@@ -258,20 +258,27 @@ if (window.speechSynthesis) {
 }
 
 // 把 "be(am/is/are)" / "a(an)" 拆成 ["be","am","is","are"] / ["a","an"]
-function speakVariants(en) {
+// 拆分单词形态: "be(am/is/are)" -> [be,am,is,are]   "a(an)" -> [a,an]
+// 只用于展示 (核对屏告诉家长要写哪几个)
+function wordForms(en) {
   const s = String(en).trim();
-  // "be(am/is/are)" -> [be, am, is, are]   括号内容是全部形态, head 也是其中一个
-  // "a(an)"        -> [a, an]
   const paren = s.match(/^([A-Za-z]+)\s*\(([^()]*)\)$/);
   if (paren) {
     const head = paren[1].trim();
-    const alts = paren[2].split(/[\/,/、]/).map(x => x.trim()).filter(Boolean);
-    const all = [head].concat(alts.filter(a => a.toLowerCase() !== head.toLowerCase()));
-    return all;
+    const alts = paren[2].split(/[\/,、]/).map(x => x.trim()).filter(Boolean);
+    return [head].concat(alts.filter(a => a.toLowerCase() !== head.toLowerCase()));
   }
-  // "thanks / Thank you!" -> 两个独立说法
   if (s.includes("/")) return s.split("/").map(x => x.trim()).filter(Boolean);
   return [s];
+}
+// 实际朗读序列。孤立单字母 a/e/i/o/u 会被 TTS 当成英文字母名
+// (a 念成 /eɪ/ 而非冠词 /ə/), 必须带词组上下文才读对。
+function speakVariants(en) {
+  const parts = wordForms(en);
+  // 形如 a(an) / a(e/i/o/u): 整体当一个词组读, TTS 才按冠词发音
+  const solo = parts.find(x => /^[aeiouAEIOU]$/.test(x));
+  if (solo && parts.length > 1) return [parts.join(" ")];
+  return parts;
 }
 function speakOnce(text, onend) {
   if (!window.speechSynthesis) { if(onend) onend(); return; }
@@ -472,10 +479,10 @@ function renderCheck() {
   $("checkCn").textContent = w.cn;
   $("checkFill").style.width = ((checkIdx + 1) / list.length * 100) + "%";
   // 若该词在课本里有原始序号 (no), 一并显示, 方便跟单词表对照
-  const variants = speakVariants(w.en);
+  const forms = wordForms(w.en);
   let tip = (w.no != null) ? ("课本第 " + w.no + " 个") : "";
-  if (variants.length > 1) {
-    tip += (tip ? " · " : "") + "含 " + variants.length + " 个说法: " + variants.join(" / ");
+  if (forms.length > 1) {
+    tip += (tip ? " · " : "") + "要写 " + forms.length + " 个: " + forms.join(" / ");
   }
   $("checkBook").textContent = tip;
   $("checkBook").style.display = tip ? "" : "none";
