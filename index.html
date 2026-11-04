@@ -277,9 +277,13 @@ function wordForms(en) {
 //   wordForms(word)  -> 要写哪几个 (核对屏显示, 仍是 [a, an])
 //   speakSeq(word)   -> 实际朗读顺序 (命中预生成音频的, 返回 [{type:"audio", file:"audio/a.mp3"}])
 // 孤立 a 单 TTS 必读 /eɪ/, 预生成 a.mp3 / an.mp3 用 HTML5 Audio 精确播放
+// 孤立 i 单 TTS 会读成两个词（"I" + 停顿 + 另一词），同样用预生成 audio/i.mp3
 const AUDIO_MAP = {
   "a":   "audio/a.mp3",
   "an":  "audio/an.mp3",
+  // ★ 孤立 "I" 走 TTS 会被读成两个词（Samantha 实测 800ms 两段波形，
+  //   频谱基频与 "eye" 不同），预生成音频保证任何设备都读成 /aɪ/。
+  "i":   "audio/i.mp3",
   "be":  null, "am": null, "is": null, "are": null,
 };
 function speakSeq(en) {
