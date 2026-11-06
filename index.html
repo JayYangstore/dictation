@@ -301,6 +301,11 @@ function playAudioItem(item, onend) {
   audioEl.onerror = () => { console.warn("音频加载失败", item.file); if(onend) onend(); };
   audioEl.play().catch(e => { console.warn("音频播放失败", e); if(onend) onend(); });
 }
+// 同一单词内的多个读法之间的间隔(如 a / an)。
+// 板栗听写时这两个读法几乎连着出现, 原来 1500ms 会拖慢节奏 —— 降到 800ms。
+const INTRA_WORD_GAP = 800;
+// 同一个词重复报读之间的间隔 —— 这段是留给板栗写字的时间, 保持 1600ms 不动。
+const REPEAT_GAP = 1600;
 function speakOnce(text, onend) {
   if (window.speechSynthesis) speechSynthesis.cancel();
   const seq = speakSeq(text);
@@ -308,15 +313,20 @@ function speakOnce(text, onend) {
   const next = () => {
     if (i >= seq.length) { if(onend) onend(); return; }
     const it = seq[i++];
+    const isLast = (i >= seq.length);
     if (it.type === "audio" && it.file) {
-      playAudioItem(it, () => setTimeout(next, 1500));
+      // 最后一个读法播完立即收尾, 不再空等 1500ms
+      playAudioItem(it, () => {
+        if (isLast) { if(onend) onend(); return; }
+        setTimeout(next, INTRA_WORD_GAP);
+      });
     } else {
       const u = new SpeechSynthesisUtterance(it.text);
       if (EN_VOICE) u.voice = EN_VOICE;
       u.lang = (EN_VOICE && EN_VOICE.lang) || "en-US";
       u.rate = 0.8; u.pitch = 1.0;
-      u.onend = () => setTimeout(next, 420);
-      u.onerror = () => setTimeout(next, 420);
+      u.onend = () => { if (isLast) { if(onend) onend(); return; } setTimeout(next, INTRA_WORD_GAP); };
+      u.onerror = () => { if (isLast) { if(onend) onend(); return; } setTimeout(next, INTRA_WORD_GAP); };
       speechSynthesis.speak(u);
     }
   };
@@ -437,7 +447,7 @@ function playCurrentWord() {
     }
     speakOnce(w.en, () => {
       if (!playing) return;
-      playTimers.push(setTimeout(() => playChain(i+1), 1600));
+      playTimers.push(setTimeout(() => playChain(i+1), REPEAT_GAP));
     });
   };
   playChain(0);
